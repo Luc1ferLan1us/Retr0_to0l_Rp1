@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retr0_t00l - Handshake Capture</title>
+    <style>
+        :root { --neon-pink: #ff2d95; --neon-blue: #0ff0fc; --neon-purple: #8a2be2; --dark-bg: #0a0a16; --darker-bg: #050510; --text-color: #ffffff; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', monospace; }
+        body { background: var(--darker-bg); color: var(--text-color); background-image: radial-gradient(circle at 10% 20%, rgba(255, 45, 149, 0.1) 0%, transparent 20%), radial-gradient(circle at 90% 80%, rgba(15, 240, 252, 0.1) 0%, transparent 20%), linear-gradient(45deg, #050510 0%, #0a0a20 100%); min-height: 100vh; overflow-x: hidden; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { text-align: center; margin-bottom: 30px; padding: 20px; border-bottom: 1px solid var(--neon-purple); }
+        h1 { font-size: 3rem; text-transform: uppercase; color: var(--neon-blue); text-shadow: 0 0 10px var(--neon-blue); }
+        .subtitle { color: var(--neon-pink); font-size: 1.2rem; }
+        
+        .card { background: rgba(10, 10, 30, 0.7); border: 1px solid var(--neon-purple); border-radius: 5px; padding: 20px; margin-bottom: 20px; }
+        .card h2 { color: var(--neon-blue); margin-bottom: 15px; border-bottom: 1px solid var(--neon-purple); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: var(--neon-pink); }
+        select, input, button { width: 100%; padding: 10px; background: rgba(15, 15, 35, 0.8); border: 1px solid var(--neon-purple); color: var(--text-color); border-radius: 4px; margin-bottom: 10px; }
+        button { background: linear-gradient(45deg, var(--neon-purple), var(--neon-pink)); border: none; cursor: pointer; font-weight: bold; text-transform: uppercase; transition: all 0.3s; }
+        button:hover { box-shadow: 0 0 10px var(--neon-pink); transform: translateY(-2px); }
+        button:disabled { background: #555; cursor: not-allowed; box-shadow: none; transform: none; }
+        button.stop { background: linear-gradient(45deg, #ff0000, #ff4500); }
+        button.scan { background: linear-gradient(45deg, var(--neon-blue), #00bfff); }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } h1 { font-size: 2rem; } }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid rgba(138, 43, 226, 0.3); }
+        th { color: var(--neon-blue); }
+        tr:hover { background: rgba(255, 45, 149, 0.1); cursor: pointer; }
+        tr.selected-row { background: rgba(15, 240, 252, 0.2) !important; border-left: 3px solid var(--neon-blue); }
+        
+        .output { background: #000; color: var(--neon-blue); padding: 15px; height: 300px; overflow-y: auto; font-family: monospace; white-space: pre-wrap; border: 1px solid var(--neon-blue); }
+        .status { background: rgba(15, 15, 35, 0.7); padding: 15px; margin-bottom: 15px; border: 1px solid var(--neon-purple); }
+        
+        .vhs-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; background: linear-gradient(transparent 50%, rgba(0, 0, 0, 0.1) 50%); background-size: 100% 4px; z-index: 9999; opacity: 0.1; }
+        .scan-line { position: fixed; top: 0; left: 0; width: 100%; height: 2px; background: var(--neon-blue); box-shadow: 0 0 10px var(--neon-blue); z-index: 10000; pointer-events: none; animation: scan 3s linear infinite; opacity: 0.5; }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+        
+        .error-box { color: #ff2d95; font-weight: bold; padding: 10px; border: 1px dashed #ff2d95; background: rgba(255, 45, 149, 0.1); }
+    </style>
+</head>
+<body>
+    <div class="vhs-overlay"></div>
+    <div class="scan-line"></div>
+    <div class="container">
+        <header>
+            <h1>Retr0_t00l</h1>
+            <p class="subtitle">Handshake Capture</p>
+        </header>
+
+        <div class="grid">
+            <div class="card">
+                <h2>🌐 Интерфейсы</h2>
+                <button class="btn scan" onclick="loadInterfaces()">🔄 Обновить список</button>
+                <div id="hs-interfaces" style="margin-top: 10px;"></div>
+                <div id="monitor-status" style="margin-top:10px; color:var(--neon-pink);"></div>
+            </div>
+            
+            <div class="card">
+                <h2>🔍 Настройки атаки</h2>
+                <button class="btn scan" onclick="scanNetworks()" id="scanBtn">🔎 Сканировать сети</button>
+                <div class="form-group" style="margin-top:10px;"><label>Таймаут (сек):</label><input type="number" id="handshakeTimeout" value="600"></div>
+                <div class="form-group"><label>Интервал деаутов (сек):</label><input type="number" id="deauthInterval" value="10"></div>
+                <div class="form-group"><label>Кол-во деаутов (за раз):</label><input type="number" id="deauthCount" value="10"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📶 Обнаруженные сети</h2>
+            <table id="networkTable">
+                <thead><tr><th>SSID</th><th>BSSID</th><th>Ch</th><th>Signal</th><th>Clients</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>🎯 Захват Handshake</h2>
+            <div class="form-group"><label>BSSID:</label><input type="text" id="bssid" readonly></div>
+            <div class="form-group"><label>Канал:</label><input type="text" id="channel" readonly></div>
+            <div class="form-group"><label>SSID:</label><input type="text" id="targetSsid" readonly></div>
+            <button class="btn" id="startHandshakeBtn" onclick="startHandshake()">🚀 Запуск</button>
+            <button class="btn stop" id="stopHandshakeBtn" onclick="stopHandshake()" style="display:none;">⏹️ Остановить</button>
+            <div class="status" id="status" style="margin-top:10px;">Статус: ожидание</div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Вывод (Лог)</h2>
+            <div class="output" id="handshake-output"></div>
+        </div>
+    </div>
+
+    <script>
+        // ================= Interfaces =================
+        async function loadInterfaces() {
+            try {
+                const res = await fetch("/interfaces").then(r => r.json());
+                const div = document.getElementById("hs-interfaces");
+                div.innerHTML = "";
+                res.interfaces.forEach(i => {
+                    div.innerHTML += `<button class='btn' style="margin-bottom:5px; font-size:12px;" onclick="setInterface('${i}')">${i}</button>`;
+                });
+                if (res.monitor) {
+                    document.getElementById("monitor-status").innerHTML = `✅ Активный монитор: ${res.monitor}`;
+                } else {
+                    document.getElementById("monitor-status").innerHTML = `❌ Монитор не выбран`;
+                }
+            } catch (e) {
+                console.error('loadInterfaces', e);
+            }
+        }
+        loadInterfaces();
+
+        async function setInterface(iface) {
+            document.getElementById("monitor-status").innerHTML = `🔄 Перевод ${iface} в монитор...`;
+            await fetch(`/set_interface/${iface}`);
+            await loadInterfaces();
+        }
+
+        // ================= Scan Networks =================
+        async function scanNetworks() {
+            const scanBtn = document.getElementById("scanBtn");
+            scanBtn.disabled = true;
+            scanBtn.textContent = '⏳ Сканирование (10 сек)...';
+
+            const timeout = parseInt(document.getElementById("handshakeTimeout").value);
+            const interval = parseInt(document.getElementById("deauthInterval").value);
+            const count = parseInt(document.getElementById("deauthCount").value);
+
+            await fetch("/update_params", {
+                method: "POST", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ handshake_timeout: timeout, deauth_interval: interval, deauth_count: count })
+            });
+
+            try {
+                const res = await fetch("/scan").then(r => r.json());
+                const tbody = document.querySelector("#networkTable tbody");
+                tbody.innerHTML = "";
+                
+                if (!res.success) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="error-box">Ошибка: Сначала выберите интерфейс (Monitor)!</td></tr>`;
+                    return;
+                }
+
+                if (res.networks.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="5">Сети не найдены.</td></tr>`;
+                }
+
+                res.networks.forEach(n => {
+                    const row = document.createElement("tr");
+                    row.innerHTML = `<td>${n.SSID}</td><td>${n.BSSID}</td><td>${n.Channel}</td><td>${n.Signal}</td><td>${n.Clients}</td>`;
+                    row.onclick = () => {
+                        document.querySelectorAll("#networkTable tbody tr").forEach(r => r.classList.remove('selected-row'));
+                        row.classList.add('selected-row');
+                        document.getElementById("bssid").value = n.BSSID;
+                        document.getElementById("channel").value = n.Channel;
+                        document.getElementById("targetSsid").value = n.SSID;
+                    };
+                    tbody.appendChild(row);
+                });
+            } catch (e) {
+                console.error(e);
+            } finally {
+                scanBtn.disabled = false;
+                scanBtn.textContent = '🔎 Сканировать сети';
+            }
+        }
+
+        // ================= Handshake Capture =================
+        async function startHandshake() {
+            const bssid = document.getElementById("bssid").value;
+            const channel = document.getElementById("channel").value;
+            const ssid = document.getElementById("targetSsid").value;
+            
+            if (!bssid) return alert("Выберите сеть из таблицы!");
+
+            const res = await fetch("/attack/handshake", {
+                method: "POST", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({bssid, channel, ssid})
+            }).then(r => r.json());
+
+            if (res.status === "success") {
+                document.getElementById("status").textContent = "Статус: захват handshake...";
+                document.getElementById("startHandshakeBtn").style.display = "none";
+                document.getElementById("stopHandshakeBtn").style.display = "block";
+                pollStatus();
+            } else {
+                alert("Ошибка: " + (res.message || "Не удалось запустить"));
+            }
+        }
+
+        async function stopHandshake() {
+            await fetch("/attack/handshake/stop", { method: "POST" });
+            document.getElementById("status").textContent = "Статус: остановлено";
+            resetHandshakeButtons();
+        }
+
+        function resetHandshakeButtons() {
+            document.getElementById("startHandshakeBtn").style.display = "block";
+            document.getElementById("stopHandshakeBtn").style.display = "none";
+        }
+
+        async function pollStatus() {
+            try {
+                const res = await fetch("/status").then(r => r.json());
+                if (res.handshake_active) document.getElementById("status").textContent = "Захват идёт...";
+                if (res.handshake_captured) {
+                    document.getElementById("status").textContent = "✅ Handshake захвачен!";
+                    resetHandshakeButtons();
+                    return;
+                }
+                if (!res.handshake_active) {
+                    resetHandshakeButtons();
+                    return;
+                }
+                setTimeout(pollStatus, 2000);
+            } catch(e) { }
+        }
+
+        // ================= Output Logger =================
+        async function loadOutput() {
+            try {
+                const res = await fetch("/output").then(r => r.json());
+                const el = document.getElementById("handshake-output");
+                el.innerText = res.output;
+                el.scrollTop = el.scrollHeight;
+            } catch (e) { /* ignore */ }
+        }
+        setInterval(loadOutput, 2000);
+    </script>
+</body>
+</html>
