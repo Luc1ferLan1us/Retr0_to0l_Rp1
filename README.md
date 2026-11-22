@@ -28,7 +28,8 @@
 
 2. Установи системные зависимости:
 	```sudo apt update
-	sudo apt install aircrack-ng iw python3-pip -y ```
+	sudo apt install aircrack-ng iw python3-pip -y```
+
 
 3. Установи Python-библиотеки:
 	```pip3 install -r requirements.txt```
