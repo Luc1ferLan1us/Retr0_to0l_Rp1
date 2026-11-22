@@ -21,13 +21,18 @@
 ## Установка
 
 1. Клонируй репозиторий:
-   ```bash
+
+   ```
    git clone https://github.com/Luc1ferLan1us/Retr0_to0l_Rp1.git
-   cd Retr0_to0l_Rp1```
+   cd Retr0_to0l_Rp1
+   ```
 
 2. Установи системные зависимости:
-	```sudo apt update
-	sudo apt install aircrack-ng iw python3-pip -y```
+
+   ```
+	sudo apt update
+	sudo apt install aircrack-ng iw python3-pip -y
+   ```
 
 3. Установи Python-библиотеки:
 	```pip3 install -r requirements.txt```
